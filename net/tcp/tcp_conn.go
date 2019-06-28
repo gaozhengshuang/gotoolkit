@@ -45,6 +45,7 @@ type TcpConnTaskLoop struct {
 	rbuftmp			[]byte			// TODO: 定义成员变量,避免每次read()构造临时buffer导致频繁GC
 	ch_writelen		int32			// 发送队列大小
 	ch_write		chan interface{}// TODO: send buffer, send/monitor/外部都会访问(需要加锁)
+	//wbufleft		*ringbuf.Buffer	// 不完全write剩余数据
 	//wbuf			[]byte			// 发送缓冲区
 	//wbuftmp		[]byte			// 临时发送缓冲区，避免频繁GC
 	ch_quitwloop 	chan int		// 通知退出 write loop
@@ -87,9 +88,10 @@ func newTcpConnTask(base *TcpConnTaskBase, w_queuelen int32, verify bool, svrcha
 	objconn.ch_write = make(chan interface{}, w_queuelen)
 	//objconn.rbuf = make([]byte, 0, def.KCmdRBufMaxSize)
 	objconn.rbuf = ringbuf.NewBuffer(def.KCmdRBufMaxSize)
-	objconn.rbuftmp = make([]byte, def.KCmdRMaxSize)		// read()需要size不是0 buffer，否则返回0
+	objconn.rbuftmp = make([]byte, def.KCmdRDMaxSize)		// read()需要size不是0 buffer，否则返回0
 	//objconn.wbuf = make([]byte, 0, KCmdWBufMaxSize)
-	//objconn.wbuftmp = make([]byte, KCmdWMaxSize)		// 
+	//objconn.wbuftmp = make([]byte, KCmdWRMaxSize)		// 
+	//objconn.wbufleft = ringbuf.NewBuffer(def.KCmdWRMaxSize)
 	objconn.ch_quitwloop = make(chan int, 1)
 	objconn.ch_quitrloop = make(chan int, 1)
 	objconn.legality.Init()
@@ -161,6 +163,7 @@ func (t *TcpConnTask) cleanup() {
 	t.rbuftmp = nil
 	//t.wbuf = nil
 	//t.wbuftmp = nil
+	//t.wbufleft = nil
 	t.session = nil
 
 	close(t.ch_write)
@@ -251,9 +254,11 @@ func (t *TcpConnTask) reset() {
 	//t.rbuf = make([]byte, 0, def.KCmdRBufMaxSize)
 	if t.rbuf == nil { t.rbuf = ringbuf.NewBuffer(def.KCmdRBufMaxSize) }
 	t.rbuf.Reset()
-	t.rbuftmp = make([]byte, def.KCmdRMaxSize)	// read()需要size不是0 buffer
+	t.rbuftmp = make([]byte, def.KCmdRDMaxSize)	// read()需要size不是0 buffer
+	//if t.wbufleft == nil { t.wbufleft = ringbuf.NewBuffer(def.KCmdWRMaxSize) }
+	//t.wbufleft.Reset();
 	//t.wbuf = make([]byte, 0, KCmdWBufMaxSize)
-	//t.wbuftmp = make([]byte, KCmdWMaxSize)	// read()需要size不是0 buffer
+	//t.wbuftmp = make([]byte, KCmdWRMaxSize)	// read()需要size不是0 buffer
 	t.ch_quitwloop = make(chan int, 1)
 	t.ch_quitrloop = make(chan int, 1)
 }
@@ -297,6 +302,22 @@ func (t *TcpConnTask) writeLoop()	{
 		}else {
 			time.Sleep(time.Millisecond*10)
 		}
+
+		//if t.wbufleft.Len() != 0 {
+		//	select {
+		//	case <-t.ch_quitwloop:
+		//		return
+		//	default:
+		//		data := t.wbufleft.ReadByReference(t.wbufleft.Len());
+		//		_, err := t.write(data)
+		//		if err != nil {
+		//			log.Error("sid[%d] WriteError:'%s'", t.id, err)
+		//			return
+		//		}
+		//		continue;
+		//	}
+		//}
+
 		select {
 		case <-t.ch_quitwloop:
 			return
@@ -390,12 +411,16 @@ func (t *TcpConnTask) read()  (bool, error) {
 	return true, nil
 }
 
+// --------------------------------------------------------------------------
+/// @brief 使用nonblock write 有可能数据发送不完全的情况(TCP底层发送缓冲区满)
+/// @brief 这里推荐使用block wirte
+// --------------------------------------------------------------------------
 func (t *TcpConnTask) write(data []byte) (bool, error) {
 	len_total, len_write := len(data), 0
 	for i:=0; i < 10; i++ {
 		//t.conn.SetWriteDeadline(time.Now().Add(time.Millisecond * 10))	// 设置写超时, Nonblock write
 		nleft := len(data)
-		wlen, err := (t.conn).Write(data)
+		wlen, err := (t.conn).Write(data)	// block write
 		len_write += wlen
 		if err != nil {
 			t.quit()
@@ -408,10 +433,13 @@ func (t *TcpConnTask) write(data []byte) (bool, error) {
 		break
 	}
 
-	if len_write != len_total {
+	// TODO:阻塞Write理论上不会出现数据发送不完全
+	if len_write < len_total {
 		errlog := fmt.Sprintf("sid [%d] [%s] write not send all data !!! want:%d real:%d", t.id, t.name, len_total, len_write)
 		log.Error(errlog)
-		//panic(errlog)
+		//t.wbufleft.Reset();
+		//t.wbufleft.Write(data[len_write:])
+		//time.Sleep(time.Millisecond*1)		// slowdown
 	}
 	//log.Info("sid[%d] real send data len=%d", t.id, len_write)
 	return true, nil

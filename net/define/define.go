@@ -27,8 +27,8 @@ const (
 )
 
 const (
-	KCmdRMaxSize    	= 4096			// 单次收包大小 4k
-	KCmdWMaxSize    	= 1024			// 单次发包大小 1k
+	KCmdRDMaxSize    	= 4096			// 单次收包大小 4k
+	KCmdWRMaxSize    	= 1024			// 单次发包大小 1k
 	KCmdRBufMaxSize		= 32 * 1024		// 接收缓冲区初始容量, 64k
 	KCmdWBufMaxSize		= 32 * 1024		// 发送缓冲区初始容量, 64k
 	KKilobyteSize		= 1024			// 1K Bytes
@@ -59,8 +59,8 @@ const (
 	Connector	= 2		// connect conn
 )
 
-// MsgHandle proto消息handler处理回调
-type MsgHandle func(session IBaseNetSession, msg interface{})
+// MsgHandler proto消息handler处理回调
+type MsgHandler func(session IBaseNetSession, msg interface{})
 
 // Http Response Hanlder
 type HttpResponseHandle func(w http.ResponseWriter, urlpath string, rawquery string, body []byte)

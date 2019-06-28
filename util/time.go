@@ -48,6 +48,10 @@ func CeilIntClock(t int64) int64 {
     return ct
 }
 
+// 格式化时间
+func ReadableTime(t int64) string {
+	return time.Unix(t, 0).Format("2006-01-02 15:04:05")
+}
 
 // IsSameDay 是否同一天
 func IsSameDay(tm1 int64, tm2 int64) bool{
@@ -120,45 +124,48 @@ func GetWeekStart(t int64) int64 {
 /// @brief StatFunctionTimeConsume 函数时间消耗统计
 // --------------------------------------------------------------------------
 type StatFunctionTimeConsume struct {
-	num 	int32
-	cursor 	int32
-	records []int64
+	capcity	int32		// 初始容量
+	wpos 	int32		// 记录偏移
+	rpos 	int32		// 读取偏移
+	records []int64		// 记录
 }
 
 func (f *StatFunctionTimeConsume) Init(n int32) {
-	f.num 	 = n
-	f.cursor = 0
+	f.capcity 	= n
+	f.wpos 		= 0
+	f.rpos  	= 0
 	f.records = make([]int64, n, n)
 }
 
-func (f *StatFunctionTimeConsume) Record(t int64) bool {
-	if f.cursor >= f.num {
+func (f *StatFunctionTimeConsume) Write(t int64) bool {
+	if f.wpos >= f.capcity {
 		return false
 	}
-	f.records[f.cursor] = t
-	f.cursor++
+
+	f.records[f.wpos] = t
+	f.wpos++
 	return true
 }
 
-func (f *StatFunctionTimeConsume) Val(i int32) int64 {
-	if i >= f.num || f.cursor == 0 {
+func (f *StatFunctionTimeConsume) Read() int64 {
+	if f.rpos + 2 > f.wpos {
 		return 0
 	}
-	return f.records[i]
-}
 
-func (f *StatFunctionTimeConsume) Diff(start, end int32) int64 {
-	return f.Val(end) - f.Val(start)
+	diff := f.records[f.rpos+1] - f.records[f.rpos]
+	f.rpos++
+	return diff
 }
 
 func (f *StatFunctionTimeConsume) Total() int64 {
-	if f.cursor <= 0 {
+	if f.wpos <= 0 {
 		return 0
 	}
-	return f.records[f.cursor-1] - f.records[0]
+	return f.records[f.wpos-1] - f.records[0]
 }
 
 func (f *StatFunctionTimeConsume) Reset() {
-	f.cursor = 0
+	f.wpos = 0
+	f.rpos = 0
 }
 

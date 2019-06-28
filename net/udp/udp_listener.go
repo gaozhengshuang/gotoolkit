@@ -41,7 +41,7 @@ func NewUdpListener(conf def.UdpListenConf, parser codec.IBaseParser, netcore de
 	info.udpConnSetAddr = make(map[string]*UdpConnTask)
 	info.parser = parser
 	info.netcore = netcore
-	info.rbuftmp = make([]byte, def.KCmdRMaxSize)		// Read()需要size不是0 buffer，否则返回0
+	info.rbuftmp = make([]byte, def.KCmdRDMaxSize)		// Read()需要size不是0 buffer，否则返回0
 	return info
 }
 

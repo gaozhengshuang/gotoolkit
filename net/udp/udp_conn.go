@@ -88,7 +88,7 @@ func newUdpConnTask(base *UdpConnTaskBase, w_queuelen int32, verify bool, svrcha
 	objconn.ch_write = make(chan interface{}, w_queuelen)
 	//objconn.rbuf = make([]byte, 0, def.KCmdRBufMaxSize)
 	objconn.rbuf = ringbuf.NewBuffer(def.KCmdRBufMaxSize)
-	objconn.rbuftmp = make([]byte, def.KCmdRMaxSize)		// read()需要size不是0 buffer，否则返回0
+	objconn.rbuftmp = make([]byte, def.KCmdRDMaxSize)		// read()需要size不是0 buffer，否则返回0
 	objconn.ch_quitwloop = make(chan int, 1)
 	objconn.ch_quitrloop = make(chan int, 1)
 	objconn.legality.Init()
@@ -255,7 +255,7 @@ func (u *UdpConnTask) reset() {
 	//u.rbuf = make([]byte, 0, def.KCmdRBufMaxSize)
 	if u.rbuf == nil { u.rbuf = ringbuf.NewBuffer(def.KCmdRBufMaxSize) }
 	u.rbuf.Reset()
-	u.rbuftmp = make([]byte, def.KCmdRMaxSize)	// read()需要size不是0 buffer
+	u.rbuftmp = make([]byte, def.KCmdRDMaxSize)	// read()需要size不是0 buffer
 	u.ch_quitwloop = make(chan int, 1)
 	u.ch_quitrloop = make(chan int, 1)
 }

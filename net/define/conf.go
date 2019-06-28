@@ -98,6 +98,7 @@ func (conf* WsConnectConf) SetHost(ip string, port int) {
 /// @brief mysql 配置定义
 // --------------------------------------------------------------------------
 type MysqlConf struct {
+	Name	string			`json:"name"`			// 唯一名字
 	Enable	bool			`json:"enable"`			// 启用开关
 	User 	string			`json:"user"`			// 用户
 	Passwd	string			`json:"passwd"`			// 密码
@@ -113,6 +114,7 @@ type NetRedisConf struct {
 	Passwd		string	`json:"passwd"`
 	DB			int		`json:"db"`
 	Host		NetHost	`json:"host"`
+	Enable		bool	`json:"enable"`
 }
 
 type TablePathConf struct {
@@ -134,7 +136,7 @@ type NetConf struct {
 	UdpListeners   	[]UdpListenConf  `json:"udplistens"`	// 监听配置
 	UdpConnectors  	[]UdpConnectConf `json:"udpconnects"`	// 连接配置
 	Redis			NetRedisConf `json:"redis"`				// redis配置
-	Mysql			MysqlConf `json:"mysql"`				// mysql配置
+	Mysql			[]MysqlConf `json:"mysql"`				// mysql配置
 }
 
 func (conf *NetConf) FindTcpConnectConf(name string) (TcpConnectConf, bool) {

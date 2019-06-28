@@ -40,7 +40,7 @@ func (p *IntHourMonitorPool) Regist(clock int64, handler IntHourCallBack) bool {
 	monitor := NewIntHourMonitor()
 	monitor.Init(handler, clock)
 	p.pool[clock] = monitor
-	log.Info("Regist IntHourMonitor[%d] Sucess", clock)
+	//log.Info("Regist IntHourMonitor[%d] Sucess", clock)
 	return true
 }
 

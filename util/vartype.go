@@ -31,6 +31,9 @@ type IVarType interface {
 	Float64() 	(float64) 
 }
 
+// --------------------------------------------------------------------------
+/// @brief 适合一次构造多次使用场景，例如成员变量
+// --------------------------------------------------------------------------
 type VarType struct {
 	val_raw		interface{}		// rawdata
 	val_bytes	[]byte
@@ -44,6 +47,23 @@ type VarType struct {
 //func NewVarType(valstr string)
 //	return &VarType{val_string : valstr}
 //}
+
+func MakeVarTypeStringMap(set map[string]interface{}) map[string]*VarType {
+	varset := make(map[string]*VarType)
+	for k , v := range set {
+		varset[k] = NewVarType(v)
+	}
+	return varset
+}
+
+func MakeVarTypeIntMap(set map[int]interface{}) map[int]*VarType {
+	varset := make(map[int]*VarType)
+	for k , v := range set {
+		varset[k] = NewVarType(v)
+	}
+	return varset
+}
+
 
 func NewVarType(val interface{}) *VarType {
 	rf, vt := reflect.ValueOf(val), &VarType{val_raw: val}
@@ -79,7 +99,11 @@ func NewVarType(val interface{}) *VarType {
 		vt.val_float = rf.Float()
 		vt.val_int = uint64(vt.val_float)
 		vt.val_bool = (vt.val_float != 0)
-		vt.val_string = strconv.FormatFloat(vt.val_float, 'E', -1, 64)
+		if rf.Kind() == reflect.Float32 {
+			vt.val_string = strconv.FormatFloat(vt.val_float, 'E', -1, 32)
+		}else {
+			vt.val_string = strconv.FormatFloat(vt.val_float, 'E', -1, 64)
+		}
 		vt.val_bytes = []byte(vt.val_string)
 	}else {
 		log.Error("VarType init not support variable kind=%s", rf.Type())
@@ -142,44 +166,115 @@ func (vt *VarType) Float32() (float32) { return float32(vt.val_float) }
 func (vt *VarType) Float64() (float64) { return float64(vt.val_float) }
 
 
-//func (vt *VarType) Bool() bool {
-//	re, _ := strconv.Atoi(vt.String())
-//	return re == 0
-//}
-//
-//func (vt *VarType) Int() (int) {
-//	re, _ := strconv.Atoi(vt.String())
-//	return re
-//}
-//
-//func (vt *VarType) Int32() (int32) {
-//	re, _ := strconv.ParseInt(vt.String(), 10, 32)
-//	return int32(re)
-//}
-//
-//func (vt *VarType) Uint32() (uint32) {
-//	re, _ := strconv.ParseUint(vt.String(), 10, 32)
-//	return uint32(re)
-//}
-//
-//func (vt *VarType) Int64() (int64) {
-//	re, _ := strconv.ParseInt(vt.String(), 10, 64)
-//	return re
-//}
-//
-//func (vt *VarType) Uint64() (uint64) {
-//	re, _ := strconv.ParseUint(vt.String(), 10, 64)
-//	return re
-//}
-//
-//func (vt *VarType) Float32() (float32) {
-//	re, _ := strconv.ParseFloat(vt.String(), 32)
-//	return float32(re)
-//}
-//
-//func (vt *VarType) Float64() (float64) {
-//	re, _ := strconv.ParseFloat(vt.String(), 64)
-//	return re
-//}
+// --------------------------------------------------------------------------
+/// @brief 轻量级可变类型
+/// @brief 适合临时变量，一次构造使用
+// --------------------------------------------------------------------------
+type LiteVarType struct {
+	val_raw interface{}
+	val_string string
+}
+
+func MakeLiteVarTypeStringMap(set map[string]interface{}) map[string]*LiteVarType {
+	varset := make(map[string]*LiteVarType)
+	for k , v := range set {
+		varset[k] = NewLiteVarType(v)
+	}
+	return varset
+}
+
+func MakeLiteVarTypeIntMap(set map[int]interface{}) map[int]*LiteVarType {
+	varset := make(map[int]*LiteVarType)
+	for k , v := range set {
+		varset[k] = NewLiteVarType(v)
+	}
+	return varset
+}
+
+func NewLiteVarType(val interface{}) *LiteVarType {
+	rf, vt := reflect.ValueOf(val), &LiteVarType{val_raw: val}
+	if rf.Kind() == reflect.String {
+		vt.val_string = rf.String()
+	} else if rf.Kind() == reflect.Slice {
+		if rf.IsNil() == true {
+			return nil
+		}
+		vt.val_string = string(rf.Bytes())
+	} else if rf.Kind() == reflect.Bool {
+		vt.val_string = strconv.FormatBool(rf.Bool())
+	} else if rf.Kind() >= reflect.Int && rf.Kind() <= reflect.Int64 {
+		vt.val_string = strconv.FormatInt(rf.Int(), 10)
+	} else if rf.Kind() >= reflect.Uint && rf.Kind() <= reflect.Uint64 {
+		vt.val_string = strconv.FormatUint(rf.Uint(), 10)
+	} else if rf.Kind() >= reflect.Float32 && rf.Kind() <= reflect.Float64 {
+		if rf.Kind() == reflect.Float32 {
+			vt.val_string = strconv.FormatFloat(rf.Float(), 'f', -1, 32)
+		}else {
+			vt.val_string = strconv.FormatFloat(rf.Float(), 'f', -1, 64)
+		}
+	}else {
+		log.Error("LiteVarType init not support variable kind=%s", rf.Type())
+		return nil
+	}
+	return vt;
+}
+
+func (vt *LiteVarType) String() string { return vt.val_string }
+func (vt *LiteVarType) Val() interface{} { return vt.val_raw }
+func (vt *LiteVarType) Bytes() []byte { return []byte(vt.val_string) }
+
+func (vt *LiteVarType) IsNil() bool {
+	rf := reflect.ValueOf(vt.val_raw)
+	return rf.IsNil()
+}
+
+func (vt *LiteVarType) Bool() bool {
+	re, _ := strconv.Atoi(vt.String())	// faster than ParseInt
+	return re == 0
+}
+
+func (vt *LiteVarType) Int() (int) {
+	//re, _ := strconv.ParseInt(vt.String(), 10, 32)
+	re, _ := strconv.Atoi(vt.String())	// faster than ParseInt
+	return int(re)
+}
+
+func (vt *LiteVarType) Int32() (int32) {
+	//re, _ := strconv.ParseInt(vt.String(), 10, 32)
+	re, _ := strconv.Atoi(vt.String())	// faster than ParseInt
+	return int32(re)
+}
+
+func (vt *LiteVarType) Uint() (uint) { 
+	//re, _ := strconv.ParseUint(vt.String(), 10, 32)
+	re, _ := strconv.Atoi(vt.String())	// faster than ParseInt
+	return uint(re)
+}
+
+func (vt *LiteVarType) Uint32() (uint32) {
+	//re, _ := strconv.ParseUint(vt.String(), 10, 32)
+	re, _ := strconv.Atoi(vt.String())	// faster than ParseInt
+	return uint32(re)
+}
+
+func (vt *LiteVarType) Int64() (int64) {
+	re, _ := strconv.ParseInt(vt.String(), 10, 64)
+	return re
+}
+
+func (vt *LiteVarType) Uint64() (uint64) {
+	re, _ := strconv.ParseUint(vt.String(), 10, 64)
+	return re
+}
+
+func (vt *LiteVarType) Float32() (float32) {
+	re, _ := strconv.ParseFloat(vt.String(), 32)
+	return float32(re)
+}
+
+func (vt *LiteVarType) Float64() (float64) {
+	re, _ := strconv.ParseFloat(vt.String(), 64)
+	return re
+}
 
 

@@ -73,7 +73,7 @@ func (ev *NetErrorEvent) Process() {
 type MsgDispatchEvent struct {
 	Session 	IBaseNetSession
 	Msg  		interface{}
-	Handler 	MsgHandle
+	Handler 	MsgHandler
 }
 func (ev *MsgDispatchEvent) InitEvent() {
 }

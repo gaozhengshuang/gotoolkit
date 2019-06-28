@@ -45,22 +45,22 @@ func NewGuajiProtoParser(name string, generator MsgIndexHandler) *GuajiProtoPars
 
 // deprecated now in the future could be remove
 func (p* GuajiProtoParser) RegistSendProto(msg interface{})	{ p.RegistSendMsg(msg) }
-func (p* GuajiProtoParser) RegistProtoMsg(msg interface{}, handler def.MsgHandle) { p.RegistRecvMsg(msg, handler) }
+func (p* GuajiProtoParser) RegistProtoMsg(msg interface{}, handler def.MsgHandler) { p.RegistRecvMsg(msg, handler) }
 
 // 注册发送协议
 func (p *GuajiProtoParser) RegistSendMsg(msg interface{}) {
 	//msg_type := reflect.TypeOf(msg)
 	//name, id := msg_type.String(), p.cmdid_generator(msg)
-	//info := &MsgHandler{Id:id, Name:name, Handler:nil}
+	//info := &MsgHandlerWrapper{Id:id, Name:name, Handler:nil}
 	//p.cmd_ids[id] = info
 	//log.Info("regist send msg[%d:%+v]", id, msg_type)
 }
 
 // 注册接收协议
-func (p* GuajiProtoParser) RegistRecvMsg(msg interface{}, handler def.MsgHandle) {
+func (p* GuajiProtoParser) RegistRecvMsg(msg interface{}, handler def.MsgHandler) {
 	msg_type := reflect.TypeOf(msg)
 	name, id := msg_type.String(), p.cmdid_generator(msg)
-	info := &MsgHandler{Id:id, Name:name, Handler:handler, Type:msg_type }
+	info := &MsgHandlerWrapper{Id:id, Name:name, Handler:handler, Type:msg_type }
 	p.cmd_ids[id] = info
 	log.Info("regist recv msg[%d:%+v]", id, msg_type)
 
@@ -74,7 +74,7 @@ func (p* GuajiProtoParser) PackMsg(msg interface{}) ([]byte, bool) {
 
 
 // 数据解码 -- 获得完整包返回true
-func (p* GuajiProtoParser) UnPackMsg(rbuf *ringbuf.Buffer) (msg_data interface{}, msg_handler *MsgHandler, errmsg error) {
+func (p* GuajiProtoParser) UnPackMsg(rbuf *ringbuf.Buffer) (msg_data interface{}, msg_handler *MsgHandlerWrapper, errmsg error) {
 	cmddata, cmdid := p.PreUnpack(rbuf)
 	if cmddata == nil {
 		return nil, nil, nil

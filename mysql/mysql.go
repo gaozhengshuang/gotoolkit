@@ -68,6 +68,10 @@ func (m *MysqlDriver) IsOpen() bool {
 	return m.db != nil
 }
 
+func (m *MysqlDriver) Name() string {
+	return m.conf.Name;
+}
+
 // --------------------------------------------------------------------------
 /// @brief 创建mysql连接
 // --------------------------------------------------------------------------
@@ -313,7 +317,7 @@ func (m *MysqlDriver) Update(tblname string, cond string, fields ...*MysqlField)
 			pair = fmt.Sprintf("`%s`=%d", f.Name, f.Value)
 		}else if kind == reflect.Float32 || kind == reflect.Float64 {
 			pair = fmt.Sprintf("`%s`=%f", f.Name, f.Value)
-		}else if kind == reflect.String || kind == reflect.Slice {	// slice '[]byte' for 'blob'
+		}else if kind == reflect.String || kind == reflect.Slice {	// slice '[]byte' for 'blob', 'timestamp' type use 'string'
 			pair = fmt.Sprintf("`%s`=\"%s\"", f.Name, f.Value)
 		}else if kind == reflect.Bool {
 			pair = fmt.Sprintf("`%s`=%t", f.Name, f.Value)

@@ -42,20 +42,20 @@ func NewProtoParser(name string, generator MsgIndexHandler) *ProtoParser {
 
 // deprecated now in the future could be remove
 func (p* ProtoParser) RegistSendProto(msg interface{})	{ p.RegistSendMsg(msg) }
-func (p* ProtoParser) RegistProtoMsg(msg interface{}, handler def.MsgHandle) { p.RegistRecvMsg(msg, handler) }
+func (p* ProtoParser) RegistProtoMsg(msg interface{}, handler def.MsgHandler) { p.RegistRecvMsg(msg, handler) }
 
 // 注册发送协议
 func (p *ProtoParser) RegistSendMsg(msg interface{}) {
 	msg_type := reflect.TypeOf(msg)
 	name, id := msg_type.String(), p.cmdid_generator(msg)
 	//name = strings.TrimPrefix(name, "*")	// msg is pointer type
-	info := &MsgHandler{Id:id, Name:name, Handler:nil}
+	info := &MsgHandlerWrapper{Id:id, Name:name, Handler:nil}
 	p.cmd_names[name] = info
 	log.Info("regist send msg[%d:%+v]", id, msg_type)
 }
 
 // 注册接收协议
-func (p* ProtoParser) RegistRecvMsg(msg interface{}, handler def.MsgHandle) {
+func (p* ProtoParser) RegistRecvMsg(msg interface{}, handler def.MsgHandler) {
 	msg_type := reflect.TypeOf(msg)
 	//protomsg := reflect.New(msg_type).Elem().Interface()
 	//if protomsg != nil { log.Info("protomsg=%+v", protomsg) }
@@ -66,7 +66,7 @@ func (p* ProtoParser) RegistRecvMsg(msg interface{}, handler def.MsgHandle) {
 		panic(fmt.Sprintf("RegistProtoMsg('%s') fail, not a 'protobuf msg' ?", name))
 	}
 
-	info := &MsgHandler{Id:id, Name:name, Handler:handler}
+	info := &MsgHandlerWrapper{Id:id, Name:name, Handler:handler}
 	p.cmd_ids[id] = info
 	log.Info("regist recv msg[%d:%+v]", id, msg_type)
 }
@@ -79,7 +79,7 @@ func (p* ProtoParser) PackMsg(msg interface{}) ([]byte, bool) {
 
 
 // 数据解码 -- 获得完整包返回true
-func (p* ProtoParser) UnPackMsg(rbuf *ringbuf.Buffer) (msg_data interface{}, msg_handler *MsgHandler, errmsg error) {
+func (p* ProtoParser) UnPackMsg(rbuf *ringbuf.Buffer) (msg_data interface{}, msg_handler *MsgHandlerWrapper, errmsg error) {
 
 	cmddata, cmdid:= p.PreUnpack(rbuf)
 	if cmddata == nil {
@@ -149,7 +149,8 @@ func (p* ProtoParser) PreUnpack(rbuf *ringbuf.Buffer) ([]byte, int32)	{
 	}
 
 	//cmddata := (*rbuf)[:cmdlen]
-	cmddata := rbuf.Read(int32(cmdlen))
+	//cmddata := rbuf.Read(int32(cmdlen))
+	cmddata := rbuf.ReadByReference(int32(cmdlen))	// 使用引用方式
 	//log.Info("unpack msgcmd ok, buflen=%d cmdlen=%d cmdid=%d", buflen, cmdlen, cmdid)
 	return cmddata, int32(cmdid)
 }

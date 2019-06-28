@@ -37,7 +37,7 @@ type NetWork struct {
 	initflag		bool
 	cb				def.IBaseNetCallback
 	ch_eventqueue	def.EventChan
-	cb_http			def.HttpResponseHandle
+	cb_http_root	def.HttpResponseHandle
 	def.NetSessionPool
 }
 
@@ -71,13 +71,14 @@ func NewNetWork() *NetWork {
 	server.httplisteners = make(map[string]*http.HttpListener)
 	server.udplisteners = make(map[string]*udp.UdpListener)
 	server.udpconnectors = make(map[string]*udp.UdpConnector)
-	server.cb_http = nil
+	server.cb_http_root = nil
 	return server
 }
 
-func (n* NetWork) Init(netconf *def.NetConf, cb def.IBaseNetCallback) {
+func (n* NetWork) Init(netconf *def.NetConf, cb def.IBaseNetCallback, cb_http_root def.HttpResponseHandle) {
 	n.netconf = *netconf
 	n.cb = cb
+	n.cb_http_root = cb_http_root
 	queue_size := def.KEventQueueMaxSize
 	if netconf.EventQueueSize != 0 { queue_size = netconf.EventQueueSize }	// 优先使用配置
 	n.ch_eventqueue = make(def.EventChan, queue_size)  // TODO: 要足够大，否则队列满后阻塞导致效率大幅降低
@@ -171,7 +172,7 @@ func (n* NetWork) IsClosed() bool {
 func (n* NetWork) startHttpListener() bool {
 	for _ , l_conf := range n.netconf.HttpListeners {
 		listener := http.NewHttpListener(l_conf)
-		listener.Init(n.cb_http)		// 通用http response handler func
+		listener.Init(n.cb_http_root)		// 通用http response handler func
 		if listener.Start() == false {
 			return false
 		}
@@ -470,9 +471,27 @@ func (n *NetWork) AddUdpConnector(conf def.UdpConnectConf) bool {
 	return true
 }
 
+//func (n *NetWork) SetHttpResponseHandler(cb_http def.HttpResponseHandle) {
+//	n.cb_http_root= cb_http
+//}
 
-func (n *NetWork) SetHttpResponseHandler(cb_http def.HttpResponseHandle) {
-	n.cb_http = cb_http
+
+// 注册Http监听回调
+func (n *NetWork) RegistHttpResposeHandler(listenername, pattern string, cb def.HttpResponseHandle) {
+	Regist := func() bool {
+		for name , listener := range n.httplisteners {
+			if name != listenername {
+				continue
+			}
+			listener.RegistResponseHandler(pattern, http.NewHttpResponseHandleWarpper(cb))
+			log.Info("注册HttpResponseHandle成功 listener[%s] pattern[%s]", listenername, pattern)
+			return true
+		}
+		return false
+	}
+	if Regist() == false {
+		log.Info("注册HttpResponseHandle失败 listener[%s] pattern[%s]", listenername, pattern)
+	}
 }
 
 // --------------------------------------------------------------------------

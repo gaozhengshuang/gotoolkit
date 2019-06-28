@@ -25,8 +25,8 @@ type ForwardProtoParser struct {
 }
 
 const (
-	ForwardParserMsgHandlerId 	= 1
-	ForwardParserMsgHandlerName = "ForwardParserMsgHandler"
+	ForwardParserMsgHandlerWrapperId 	= 1
+	ForwardParserMsgHandlerWrapperName = "ForwardParserMsgHandlerWrapper"
 )
 
 // --------------------------------------------------------------------------
@@ -45,22 +45,22 @@ func NewForwardProtoParser(name string, generator MsgIndexHandler) *ForwardProto
 
 // deprecated now will remove in future
 func (p* ForwardProtoParser) RegistSendProto(msg interface{})	{ p.RegistSendMsg(msg) }
-func (p* ForwardProtoParser) RegistProtoMsg(msg interface{}, handler def.MsgHandle) { p.RegistRecvMsg(msg, handler) }
+func (p* ForwardProtoParser) RegistProtoMsg(msg interface{}, handler def.MsgHandler) { p.RegistRecvMsg(msg, handler) }
 
 // 注册发送协议
 func (p *ForwardProtoParser) RegistSendMsg(msg interface{}) {
 	//msg_type := reflect.TypeOf(msg)
 	//name, id := msg_type.String(), p.cmdid_generator(msg)
-	//info := &MsgHandler{Id:id, Name:name, Handler:nil}
+	//info := &MsgHandlerWrapper{Id:id, Name:name, Handler:nil}
 	//p.cmd_names[name] = info
 	//log.Info("regist send msg[%d:%+v]", id, msg_type)
 }
 
 // 注册接收协议
-func (p* ForwardProtoParser) RegistRecvMsg(msg interface{}, handler def.MsgHandle) {
-	info := &MsgHandler{Id:ForwardParserMsgHandlerId, Name:ForwardParserMsgHandlerName, Handler:handler}
+func (p* ForwardProtoParser) RegistRecvMsg(msg interface{}, handler def.MsgHandler) {
+	info := &MsgHandlerWrapper{Id:ForwardParserMsgHandlerWrapperId, Name:ForwardParserMsgHandlerWrapperName, Handler:handler}
 	p.cmd_ids[info.Id] = info
-	log.Info("Regist ForwardProtoParser MsgHandler")
+	log.Info("Regist ForwardProtoParser MsgHandlerWrapper")
 }
 
 
@@ -71,7 +71,7 @@ func (p* ForwardProtoParser) PackMsg(msg interface{}) ([]byte, bool) {
 
 
 // 数据解码 -- 获得完整包返回true
-func (p* ForwardProtoParser) UnPackMsg(rbuf *ringbuf.Buffer) (msg_data interface{}, msg_handler *MsgHandler, errmsg error) {
+func (p* ForwardProtoParser) UnPackMsg(rbuf *ringbuf.Buffer) (msg_data interface{}, msg_handler *MsgHandlerWrapper, errmsg error) {
 
 	cmddata, cmdid := p.PreUnpack(rbuf)
 	if cmddata == nil {
@@ -101,7 +101,7 @@ func (p* ForwardProtoParser) PreUnpack(rbuf *ringbuf.Buffer) ([]byte, int32)	{
 	// 每次解包定量大小数据，也可以解包全部rbuf数据
 	buflen = util.MinInt32(buflen, int32(2048))
 	cmddata := rbuf.Read(buflen)
-	return cmddata, ForwardParserMsgHandlerId
+	return cmddata, ForwardParserMsgHandlerWrapperId
 }
 
 

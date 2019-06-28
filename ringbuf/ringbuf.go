@@ -1,5 +1,7 @@
 /// @file ringbuf.go
-/// @brief 环形缓冲区
+/// @brief 环形缓冲区(线程不安全)
+/// @brief Read接口有2个版本:引用(效率高)和拷贝(效率低)
+/// @brief Read具体使用哪个版本取决于应用场景: 即拿即用可以使用引用版本，否则都必须使用拷贝版本
 /// @author jackytse, xiejian1998@foxmail.com
 /// @version 1.0
 /// @date 2018-12-11
@@ -76,12 +78,23 @@ func (r *Buffer) Write(buf []byte) {
 }
 
 // --------------------------------------------------------------------------
-/// @brief Read 
-/// @brief TODO: 为了效率，返回的切片某些情况下是Buffer内部切片的引用
-///
+/// @brief Read
+/// @brief TODO: 默认使用copy版本
+/// @brief TODO: Read接口有2个版本:引用(效率高)和拷贝(效率低)
+/// @brief TODO: Read具体使用哪个版本取决于应用场景: 即拿即用可以使用引用版本，否则都必须使用拷贝版本
 /// @param num int32
 // --------------------------------------------------------------------------
 func (r *Buffer) Read(num int32) (buf []byte) {
+	return r.copyRead(num)
+}
+
+// 引用版本
+func (r *Buffer) ReadByReference(num int32) (buf []byte) {
+	return r.refRead(num)
+}
+
+// 引用版本
+func (r *Buffer) refRead(num int32) (buf []byte) {
 	if num > r.Len() {
 		return nil
 	}
@@ -108,6 +121,37 @@ func (r *Buffer) Read(num int32) (buf []byte) {
 	}
 
 	return nil
+}
+
+// 拷贝版本
+func (r *Buffer) copyRead(num int32) (buf []byte) {
+	if num > r.Len() {
+		return nil
+	}
+
+	buf = make([]byte, num, num)
+	if r.wpos <= r.rpos {
+		rightspace := r.Cap() - r.rpos
+		if rightspace >= num {
+			copy(buf[:], r.buf[r.rpos:r.rpos+num])
+			r.rpos += num
+		}else {
+			copy(buf, r.buf[r.rpos:])
+			copy(buf[rightspace:], r.buf[0:num-rightspace])
+			r.rpos = num-rightspace
+		}
+
+		r.size -= num
+		return buf
+	}else /*r.wpos > r.rpos*/ {
+		copy(buf, r.buf[r.rpos:r.rpos+num])
+		r.rpos += num
+		r.size -= num
+		return buf
+	}
+
+	return nil
+
 }
 
 func (r *Buffer) View(num int32) (buf []byte) {

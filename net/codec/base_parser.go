@@ -32,14 +32,14 @@ type IBaseMsgHandler interface {
 
 // 获取msg index id
 type MsgIndexHandler func(msg interface{}) int32
-type BatchRegistHandler func() map[int32]*MsgHandler  
+type BatchRegistHandler func() map[int32]*MsgHandlerWrapper  
 
 
-// MsgHandler proto消息注册信息 
-type MsgHandler struct {
+// MsgHandlerWrapper proto消息注册信息 
+type MsgHandlerWrapper struct {
 	Name    string
 	Id      int32
-	Handler def.MsgHandle
+	Handler def.MsgHandler
 	Type	reflect.Type
 }
 
@@ -70,14 +70,14 @@ type IBaseParser interface {
 	CmdId(string) int32
 	Init(handler MsgIndexHandler)
 	//PreUnpack(rbuf *[]byte) (*[]byte, int32)
-	//UnPackMsg(rbuf *[]byte) (msg interface{}, handler *MsgHandler, errmsg error)
+	//UnPackMsg(rbuf *[]byte) (msg interface{}, handler *MsgHandlerWrapper, errmsg error)
 	//PackMsg(msg interface{}) ([]byte, bool)
 	PreUnpack(rbuf *ringbuf.Buffer) ([]byte, int32)
-	UnPackMsg(rbuf *ringbuf.Buffer) (msg interface{}, handler *MsgHandler, errmsg error)
+	UnPackMsg(rbuf *ringbuf.Buffer) (msg interface{}, handler *MsgHandlerWrapper, errmsg error)
 	PackMsg(msg interface{}) ([]byte, bool)
 
-	RegistProtoMsg(msg interface{}, handler def.MsgHandle)	// deprecated now in the future could be remove
-	RegistRecvMsg(msg interface{}, handler def.MsgHandle)
+	RegistProtoMsg(msg interface{}, handler def.MsgHandler)	// deprecated now in the future could be remove
+	RegistRecvMsg(msg interface{}, handler def.MsgHandler)
 	RegistSendMsg(msg interface{})
 }
 
@@ -86,15 +86,15 @@ type IBaseParser interface {
 // --------------------------------------------------------------------------
 type BaseParser struct {
 	name string
-	cmd_ids map[int32]*MsgHandler				// just for recv(unpack) msg
-	cmd_names map[string]*MsgHandler			// just for send(pack) msg
+	cmd_ids map[int32]*MsgHandlerWrapper				// just for recv(unpack) msg
+	cmd_names map[string]*MsgHandlerWrapper			// just for send(pack) msg
 	cmdid_generator MsgIndexHandler
 }
 
 // 初始化
 func (ba *BaseParser) Init(generator MsgIndexHandler) {
-	ba.cmd_ids = make(map[int32]*MsgHandler)
-	ba.cmd_names = make(map[string]*MsgHandler)
+	ba.cmd_ids = make(map[int32]*MsgHandlerWrapper)
+	ba.cmd_names = make(map[string]*MsgHandlerWrapper)
 	ba.cmdid_generator = generator
 }
 
@@ -115,7 +115,7 @@ func (ba *BaseParser) CmdId(s string) int32 {
 	return info.Id
 }
 
-func (ba *BaseParser) RegistRecvMsg(msg interface{}, handler def.MsgHandle) { }
+func (ba *BaseParser) RegistRecvMsg(msg interface{}, handler def.MsgHandler) { }
 func (ba *BaseParser) RegistSendMsg(msg interface{}) { }
 
 
@@ -137,19 +137,19 @@ type StructCmdParser struct {
 // --------------------------------------------------------------------------
 /// @brief 发送协议全局注册
 // --------------------------------------------------------------------------
-type globalSendMsgHandler struct {
-	cmd_names map[string]*MsgHandler				// just for recv(unpack) msg
+type GlobalSendMsgHandler struct {
+	cmd_names map[string]*MsgHandlerWrapper				// just for recv(unpack) msg
 }
 
-func (g *globalSendMsgHandler) Init(msgs map[int32]string) {
-	g.cmd_names = make(map[string]*MsgHandler)
+func (g *GlobalSendMsgHandler) Init(msgs map[int32]string) {
+	g.cmd_names = make(map[string]*MsgHandlerWrapper)
 	for id, name := range msgs {
-		g.cmd_names[name] = &MsgHandler{Id:id, Name:name, Handler:nil}
+		g.cmd_names[name] = &MsgHandlerWrapper{Id:id, Name:name, Handler:nil}
 		//log.Info("regist send msg[%d:%s]", id, name)
 	}
 }
 
-func (g *globalSendMsgHandler) CmdId(s string) int32 {
+func (g *GlobalSendMsgHandler) CmdId(s string) int32 {
 	info, ok := g.cmd_names[s]
 	if ok == false {
 		log.Error("not regist msg=%s", s)
@@ -158,7 +158,7 @@ func (g *globalSendMsgHandler) CmdId(s string) int32 {
 	return info.Id
 }
 
-var g_SendMsgHandler globalSendMsgHandler
+var g_SendMsgHandler GlobalSendMsgHandler
 
 func InitGlobalSendMsgHandler(msgs map[int32]string) {
 	g_SendMsgHandler.Init(msgs)

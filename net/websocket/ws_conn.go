@@ -183,6 +183,7 @@ func (w *WsConnTask) reset() {
 	//w.rbuf = make([]byte, 0, def.KCmdRBufMaxSize)
 	if w.rbuf == nil {  w.rbuf = ringbuf.NewBuffer(def.KCmdRBufMaxSize) }
 	w.rbuf.Reset()
+
 	w.ch_quitwloop = make(chan int, 1)
 	w.ch_quitrloop = make(chan int, 1)
 }
@@ -286,6 +287,7 @@ func (w *WsConnTask) writeLoop()	{
 		}else {
 			time.Sleep(time.Millisecond*20)
 		}
+
 		select {
 		case <-w.ch_quitwloop:
 			return
@@ -381,10 +383,14 @@ func (w *WsConnTask) read()  (bool, error) {
 	return true, nil
 }
 
+// --------------------------------------------------------------------------
+/// @brief 使用nonblock write 有可能数据发送不完全的情况(TCP底层发送缓冲区满)
+/// @brief 这里推荐使用block wirte
+// --------------------------------------------------------------------------
 func (w *WsConnTask) write(data []byte) (bool, error) {
 	
 	//w.conn.SetWriteDeadline(time.Now().Add(time.Millisecond * 10))	// 设置写超时, Nonblock write
-	err := w.conn.WriteMessage(int(w.msgtype), data)
+	err := w.conn.WriteMessage(int(w.msgtype), data)		// block write
 	if err != nil {
 		w.quit()
 		return false, err

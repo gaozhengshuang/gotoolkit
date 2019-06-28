@@ -55,7 +55,11 @@ func (h *HttpResponseHandleWarpper) ServeHTTP(w http.ResponseWriter, r *http.Req
 	}
 
 	defer util.RecoverPanic(nil, nil)
+	w.Header().Set("HttpRemoteAddress", r.RemoteAddr)	// 为header设置RemoteAddr参数
+	w.Header().Set("HttpListenSerivce", r.Host)			// 为header设置
 	h.handler(w, r.URL.Path, r.URL.RawQuery, body)
+	w.Header().Del("HttpRemoteAddress")					// 删除RemoteAddr参数
+	w.Header().Del("HttpListenSerivce")
 }
 
 
